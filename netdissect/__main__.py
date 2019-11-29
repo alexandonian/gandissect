@@ -1,4 +1,12 @@
-import torch, sys, os, argparse, textwrap, numbers, numpy, json, PIL
+import torch
+import sys
+import os
+import argparse
+import textwrap
+import numbers
+import numpy
+import json
+import PIL
 from torchvision import transforms
 from torch.utils.data import TensorDataset
 from netdissect.progress import verbose_progress, print_progress
@@ -27,6 +35,7 @@ python -m netdissect \\
         --gan
 '''
 
+
 def main():
     # Training settings
     def strpair(arg):
@@ -34,6 +43,7 @@ def main():
         if len(p) == 1:
             p = p + p
         return p
+
     def intpair(arg):
         p = arg.split(',')
         if len(p) == 1:
@@ -41,9 +51,9 @@ def main():
         return tuple(int(v) for v in p)
 
     parser = argparse.ArgumentParser(description='Net dissect utility',
-            prog='python -m netdissect',
-            epilog=textwrap.dedent(help_epilog),
-            formatter_class=argparse.RawDescriptionHelpFormatter)
+                                     prog='python -m netdissect',
+                                     epilog=textwrap.dedent(help_epilog),
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--model', type=str, default=None,
                         help='constructor for the model to test')
     parser.add_argument('--pthfile', type=str, default=None,
@@ -147,7 +157,7 @@ def main():
     # Default segmenter class
     if args.gen and args.segmenter is None:
         args.segmenter = ("netdissect.segmenter.UnifiedParsingSegmenter(" +
-                "segsizes=[256], segdiv='quad')")
+                          "segsizes=[256], segdiv='quad')")
 
     # Default threshold
     if args.quantile_threshold is None:
@@ -192,23 +202,23 @@ def main():
         # Load dataset for classifier case.
         # Load perturbation
         perturbation = numpy.load(args.perturbation
-                ) if args.perturbation else None
+                                  ) if args.perturbation else None
         segrunner = None
 
         # Load broden dataset
         if args.imagedir is not None:
             dataset = try_to_load_images(args.imagedir, args.imgsize,
-                    perturbation, args.size)
+                                         perturbation, args.size)
             segrunner = ImageOnlySegRunner(dataset)
         else:
             dataset = try_to_load_broden(args.segments, args.imgsize, 1,
-                perturbation, args.download, args.size)
+                                         perturbation, args.download, args.size)
         if dataset is None:
             dataset = try_to_load_multiseg(args.segments, args.imgsize,
-                    perturbation, args.size)
+                                           perturbation, args.size)
         if dataset is None:
             print_progress('No segmentation dataset found in %s',
-                    args.segments)
+                           args.segments)
             print_progress('use --download to download Broden.')
             sys.exit(1)
     else:
@@ -241,6 +251,7 @@ def main():
     # Mark the directory so that it's not done again.
     mark_job_done(args.outdir)
 
+
 class AddPerturbation(object):
     def __init__(self, perturbation):
         self.perturbation = perturbation
@@ -250,15 +261,16 @@ class AddPerturbation(object):
             return pic
         # Convert to a numpy float32 array
         npyimg = numpy.array(pic, numpy.uint8, copy=False
-                ).astype(numpy.float32)
+                             ).astype(numpy.float32)
         # Center the perturbation
         oy, ox = ((self.perturbation.shape[d] - npyimg.shape[d]) // 2
-                for d in [0, 1])
+                  for d in [0, 1])
         npyimg += self.perturbation[
-                oy:oy+npyimg.shape[0], ox:ox+npyimg.shape[1]]
+            oy:oy + npyimg.shape[0], ox:ox + npyimg.shape[1]]
         # Pytorch conventions: as a float it should be [0..1]
         npyimg.clip(0, 255, npyimg)
         return npyimg / 255.0
+
 
 def test_dissection():
     verbose_progress(True)
@@ -272,63 +284,67 @@ def test_dissection():
         ('features.3', 'conv2'),
         ('features.6', 'conv3'),
         ('features.8', 'conv4'),
-        ('features.10', 'conv5') ])
+        ('features.10', 'conv5')])
     # load broden dataset
     bds = BrodenDataset('dataset/broden',
-            transform=transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize(IMAGE_MEAN, IMAGE_STDEV)]),
-            size=100)
+                        transform=transforms.Compose([
+                            transforms.ToTensor(),
+                            transforms.Normalize(IMAGE_MEAN, IMAGE_STDEV)]),
+                        size=100)
     # run dissect
     dissect('dissect/test', model, bds,
             examples_per_unit=10)
+
 
 def try_to_load_images(directory, imgsize, perturbation, size):
     # Load plain image dataset
     # TODO: allow other normalizations.
     return ParallelImageFolders(
-            [directory],
-            transform=transforms.Compose([
-                transforms.Resize(imgsize),
-                AddPerturbation(perturbation),
-                transforms.ToTensor(),
-                transforms.Normalize(IMAGE_MEAN, IMAGE_STDEV)]),
-            size=size)
+        [directory],
+        transform=transforms.Compose([
+            transforms.Resize(imgsize),
+            AddPerturbation(perturbation),
+            transforms.ToTensor(),
+            transforms.Normalize(IMAGE_MEAN, IMAGE_STDEV)]),
+        size=size)
+
 
 def try_to_load_broden(directory, imgsize, broden_version, perturbation,
-        download, size):
+                       download, size):
     # Load broden dataset
     ds_resolution = (224 if max(imgsize) <= 224 else
                      227 if max(imgsize) <= 227 else 384)
     if not os.path.isfile(os.path.join(directory,
-           'broden%d_%d' % (broden_version, ds_resolution), 'index.csv')):
+                                       'broden%d_%d' % (broden_version, ds_resolution), 'index.csv')):
         return None
     return BrodenDataset(directory,
-            resolution=ds_resolution,
-            download=download,
-            broden_version=broden_version,
-            transform=transforms.Compose([
-                transforms.Resize(imgsize),
-                AddPerturbation(perturbation),
-                transforms.ToTensor(),
-                transforms.Normalize(IMAGE_MEAN, IMAGE_STDEV)]),
-            size=size)
+                         resolution=ds_resolution,
+                         download=download,
+                         broden_version=broden_version,
+                         transform=transforms.Compose([
+                             transforms.Resize(imgsize),
+                             AddPerturbation(perturbation),
+                             transforms.ToTensor(),
+                             transforms.Normalize(IMAGE_MEAN, IMAGE_STDEV)]),
+                         size=size)
+
 
 def try_to_load_multiseg(directory, imgsize, perturbation, size):
     if not os.path.isfile(os.path.join(directory, 'labelnames.json')):
         return None
     minsize = min(imgsize) if hasattr(imgsize, '__iter__') else imgsize
     return MultiSegmentDataset(directory,
-            transform=(transforms.Compose([
-                transforms.Resize(minsize),
-                transforms.CenterCrop(imgsize),
-                AddPerturbation(perturbation),
-                transforms.ToTensor(),
-                transforms.Normalize(IMAGE_MEAN, IMAGE_STDEV)]),
-            transforms.Compose([
-                transforms.Resize(minsize, interpolation=PIL.Image.NEAREST),
-                transforms.CenterCrop(imgsize)])),
-            size=size)
+                               transform=(transforms.Compose([
+                                   transforms.Resize(minsize),
+                                   transforms.CenterCrop(imgsize),
+                                   AddPerturbation(perturbation),
+                                   transforms.ToTensor(),
+                                   transforms.Normalize(IMAGE_MEAN, IMAGE_STDEV)]),
+                                   transforms.Compose([
+                                       transforms.Resize(minsize, interpolation=PIL.Image.NEAREST),
+                                       transforms.CenterCrop(imgsize)])),
+                               size=size)
+
 
 def add_scale_offset_info(model, layer_names):
     '''
@@ -357,6 +373,7 @@ def add_scale_offset_info(model, layer_names):
     for name in aka_map:
         assert name in seen, ('Layer %s not found' % name)
 
+
 def dilation_scale_offset(dilations):
     '''Composes a list of (k, s, p) into a single total scale and offset.'''
     if len(dilations) == 0:
@@ -368,17 +385,19 @@ def dilation_scale_offset(dilations):
     offset += (kernel - 1) / 2.0 - padding
     return scale, offset
 
+
 def dilations(modulelist):
     '''Converts a list of modules to (kernel_size, stride, padding)'''
     result = []
     for module in modulelist:
         settings = tuple(getattr(module, n, d)
-            for n, d in (('kernel_size', 1), ('stride', 1), ('padding', 0)))
+                         for n, d in (('kernel_size', 1), ('stride', 1), ('padding', 0)))
         settings = (((s, s) if not isinstance(s, tuple) else s)
-            for s in settings)
+                    for s in settings)
         if settings != ((1, 1), (1, 1), (0, 0)):
             result.append(zip(*settings))
     return zip(*result)
+
 
 def sequence_scale_offset(modulelist):
     '''Returns (yscale, yoffset), (xscale, xoffset) given a list of modules'''
@@ -388,17 +407,21 @@ def sequence_scale_offset(modulelist):
 def strfloat(s):
     try:
         return float(s)
-    except:
+    except BaseException:
         return s
+
 
 class FloatRange(object):
     def __init__(self, start, end):
         self.start = start
         self.end = end
+
     def __eq__(self, other):
         return isinstance(other, float) and self.start <= other <= self.end
+
     def __repr__(self):
         return '[%g-%g]' % (self.start, self.end)
+
 
 # Many models use this normalization.
 IMAGE_MEAN = [0.485, 0.456, 0.406]
