@@ -5,6 +5,7 @@ from netdissect.progress import print_progress
 from netdissect.nethook import InstrumentedModel
 from netdissect.easydict import EasyDict
 
+
 def create_instrumented_model(args, **kwargs):
     '''
     Creates an instrumented model out of a namespace of arguments that
@@ -16,7 +17,7 @@ def create_instrumented_model(args, **kwargs):
       gen: True for a generator model.  One-pixel input assumed.
       imgsize: For non-generator models, (y, x) dimensions for RGB input.
       cuda: True to use CUDA.
-  
+
     The constructed model will be decorated with the following attributes:
       input_shape: (usually 4d) tensor shape for single-image input.
       output_shape: 4d tensor shape for output.
@@ -56,11 +57,11 @@ def create_instrumented_model(args, **kwargs):
         submodule = getattr(args, 'submodule', None)
         if submodule is not None and len(submodule):
             remove_prefix = submodule + '.'
-            data = { k[len(remove_prefix):]: v for k, v in data.items()
+            data = {k[len(remove_prefix):]: v for k, v in data.items()
                     if k.startswith(remove_prefix)}
             if not len(data):
                 print_progress('No submodule %s found in %s' %
-                        (submodule, args.pthfile))
+                               (submodule, args.pthfile))
                 return None
         model.load_state_dict(data, strict=not getattr(args, 'unstrict', False))
 
@@ -76,13 +77,13 @@ def create_instrumented_model(args, **kwargs):
             prefix += name + '.'
         # Default to all nontrivial top-level layers except last.
         args.layers = [prefix + name
-                for name, module in container.named_children()
-                if type(module).__module__ not in [
-                    # Skip ReLU and other activations.
-                    'torch.nn.modules.activation',
-                    # Skip pooling layers.
-                    'torch.nn.modules.pooling']
-                ][:-1]
+                       for name, module in container.named_children()
+                       if type(module).__module__ not in [
+                           # Skip ReLU and other activations.
+                           'torch.nn.modules.activation',
+                           # Skip pooling layers.
+                           'torch.nn.modules.pooling']
+                       ][:-1]
         print_progress('Defaulting to layers: %s' % ' '.join(args.layers))
 
     # Now wrap the model for instrumentation.
@@ -97,25 +98,31 @@ def create_instrumented_model(args, **kwargs):
 
     # Annotate input, output, and feature shapes
     annotate_model_shapes(model,
-            gen=getattr(args, 'gen', False),
-            imgsize=getattr(args, 'imgsize', None))
+                          y=getattr(args, 'y', None),
+                          gen=getattr(args, 'gen', False),
+                          z_dim=getattr(args, 'z_dim', None),
+                          imgsize=getattr(args, 'imgsize', None))
     return model
 
-def annotate_model_shapes(model, gen=False, imgsize=None):
+
+def annotate_model_shapes(model, y=None, gen=False, imgsize=None, z_dim=None):
     assert (imgsize is not None) or gen
 
     # Figure the input shape.
     if gen:
-        # We can guess a generator's input shape by looking at the model.
-        # Examine first conv in model to determine input feature size.
-        first_layer = [c for c in model.modules()
-                if isinstance(c, (torch.nn.Conv2d, torch.nn.ConvTranspose2d,
-                    torch.nn.Linear))][0]
-        # 4d input if convolutional, 2d input if first layer is linear.
-        if isinstance(first_layer, (torch.nn.Conv2d, torch.nn.ConvTranspose2d)):
-            input_shape = (1, first_layer.in_channels, 1, 1)
+        if z_dim is not None:
+            input_shape = (1, z_dim)
         else:
-            input_shape = (1, first_layer.in_features)
+            # We can guess a generator's input shape by looking at the model.
+            # Examine first conv in model to determine input feature size.
+            first_layer = [c for c in model.modules()
+                           if isinstance(c, (torch.nn.Conv2d, torch.nn.ConvTranspose2d,
+                                             torch.nn.Linear))][0]
+            # 4d input if convolutional, 2d input if first layer is linear.
+            if isinstance(first_layer, (torch.nn.Conv2d, torch.nn.ConvTranspose2d)):
+                input_shape = (1, first_layer.in_channels, 1, 1)
+            else:
+                input_shape = (1, first_layer.in_features)
     else:
         # For a classifier, the input image shape is given as an argument.
         input_shape = (1, 3) + tuple(imgsize)
@@ -123,12 +130,18 @@ def annotate_model_shapes(model, gen=False, imgsize=None):
     # Run the model once to observe feature shapes.
     device = next(model.parameters()).device
     dry_run = torch.zeros(input_shape).to(device)
+    if y is not None:
+        y = torch.zeros(1).to(device).long()
     with torch.no_grad():
-        output = model(dry_run)
+        if y is not None:
+            # output = model(dry_run, y)
+            output = model(dry_run)
+        else:
+            output = model(dry_run)
 
     # Annotate shapes.
     model.input_shape = input_shape
-    model.feature_shape = { layer: feature.shape
-            for layer, feature in model.retained_features().items() }
+    model.feature_shape = {layer: feature.shape
+                           for layer, feature in model.retained_features().items()}
     model.output_shape = output.shape
     return model

@@ -77,6 +77,10 @@ def main():
                         help='directory containing image-only dataset')
     parser.add_argument('--imgsize', type=intpair, default=(227, 227),
                         help='input image size to use')
+    parser.add_argument('--z_dim', type=int, default=128,
+                        help='dimension of input z vector')
+    parser.add_argument('--y', type=int, default=None,
+                        help='Class label for class-conditional models.')
     parser.add_argument('--netname', type=str, default=None,
                         help='name for network in generated reports')
     parser.add_argument('--meta', type=str, nargs='+',
