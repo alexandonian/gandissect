@@ -16,7 +16,7 @@ def fix_class(G, y):
 
 
 def pretrained(res=128, pretrained='places365', y=215):
-    G = BigGAN(resolution=res)
+    G = BigGAN(resolution=res, pretrained=pretrained)
     G = fix_class(G, y)
     return G
 
