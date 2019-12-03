@@ -1,4 +1,5 @@
 import numpy, scipy
+from PIL import Image
 
 def segment_visualization(seg, size):
     result = numpy.zeros((seg.shape[1] * seg.shape[2], 3), dtype=numpy.uint8)
@@ -16,7 +17,8 @@ def segment_visualization(seg, size):
         result[bitmap] = high_contrast_arr[label % len(high_contrast_arr)]
     result = result.reshape((seg.shape[1], seg.shape[2], 3))
     if seg.shape[1:] != size:
-        result = scipy.misc.imresize(result, size, interp='nearest')
+        # result = scipy.misc.imresize(result, size, interp='nearest')
+        result = numpy.array(Image.fromarray(result).resize(size))
     return result
 
 # A palette that maximizes perceptual contrast between entries.
