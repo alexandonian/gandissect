@@ -1,6 +1,6 @@
 import torch
 
-from pretorched.gans import BigGAN
+from pretorched.gans import BigGAN, BigGANDeep
 
 
 def fix_class(G, y):
@@ -15,8 +15,13 @@ def fix_class(G, y):
     return G
 
 
-def pretrained(res=128, pretrained='places365', y=215):
+def pretrained_biggan(res=128, pretrained='places365', y=215):
     G = BigGAN(resolution=res, pretrained=pretrained)
+    G = fix_class(G, y)
+    return G
+
+def pretrained_biggan_deep(res=256, pretrained='places365-challenge', y=215):
+    G = BigGANDeep(resolution=res, pretrained=pretrained)
     G = fix_class(G, y)
     return G
 
