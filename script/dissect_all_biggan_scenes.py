@@ -1,6 +1,6 @@
 import os
 
-with open('/data/datasets/Places365/categories_places365.txt') as f:
+with open('/data/vision/oliva/scratch/datasets/Places365/categories_places365.txt') as f:
         categories = ['-'.join(x.split(' ')[0].split('/')[2:]) for x in f]
 
 cmd_tmpl = """
