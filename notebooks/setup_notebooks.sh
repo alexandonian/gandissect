@@ -12,3 +12,4 @@ git config filter.clean_ipynb.required true
 ln -s ../dissect .
 ln -s ../models .
 ln -s ../dataset .
+ln -s ../netdissect .
