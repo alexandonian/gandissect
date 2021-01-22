@@ -14,6 +14,7 @@
 /notebooks/models
 __pycache__
 .DS_Store
+.vscode
 .__*
 .ipynb*
 .*swp
